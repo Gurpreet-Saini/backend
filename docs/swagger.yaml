@@ -1,0 +1,202 @@
+basePath: /
+definitions:
+  handlers.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.Attendance:
+    properties:
+      check_in:
+        type: string
+      check_out:
+        type: string
+      created_at:
+        type: string
+      date:
+        type: string
+      department:
+        $ref: '#/definitions/models.Department'
+      department_id:
+        type: integer
+      id:
+        type: integer
+      marked_by:
+        type: integer
+      marked_by_user:
+        $ref: '#/definitions/models.User'
+      sewadar:
+        $ref: '#/definitions/models.Sewadar'
+      sewadar_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  models.Center:
+    properties:
+      created_at:
+        type: string
+      departments:
+        items:
+          $ref: '#/definitions/models.Department'
+        type: array
+      id:
+        type: integer
+      location:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.Department:
+    properties:
+      center:
+        $ref: '#/definitions/models.Center'
+      center_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      sewadars:
+        items:
+          $ref: '#/definitions/models.Sewadar'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  models.Sewadar:
+    properties:
+      attendance:
+        items:
+          $ref: '#/definitions/models.Attendance'
+        type: array
+      created_at:
+        type: string
+      department:
+        $ref: '#/definitions/models.Department'
+      department_id:
+        type: integer
+      email:
+        type: string
+      employee_id:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      phone:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.User:
+    properties:
+      created_at:
+        type: string
+      department:
+        $ref: '#/definitions/models.Department'
+      department_id:
+        description: scoped for operator/viewer
+        type: integer
+      id:
+        type: integer
+      role:
+        $ref: '#/definitions/models.UserRole'
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  models.UserRole:
+    enum:
+    - center_admin
+    - operator
+    - dept_viewer
+    type: string
+    x-enum-varnames:
+    - RoleCenterAdmin
+    - RoleOperator
+    - RoleDeptViewer
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API for managing centers, departments, sewadars, and attendance.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Attendance Management System API
+  version: "1.0"
+paths:
+  /api/me:
+    get:
+      consumes:
+      - application/json
+      description: Get current authenticated user details
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.User'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: User login
+      tags:
+      - auth
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
