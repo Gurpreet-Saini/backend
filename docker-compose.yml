@@ -15,7 +15,7 @@ services:
 
   backend:
     build: 
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: ams-backend
     ports:
@@ -27,18 +27,6 @@ services:
       - ENV=production
     depends_on:
       - db
-
-  frontend:
-    build: 
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: ams-frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
-    depends_on:
-      - backend
 
 volumes:
   postgres_data:

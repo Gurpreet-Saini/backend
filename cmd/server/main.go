@@ -70,11 +70,29 @@ func main() {
 
 	// CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOriginFunc:  func(origin string) bool { return true },
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
+
+	// Health check route (public)
+	r.GET("/health", func(c *gin.Context) {
+		sqlDB, err := db.DB()
+		if err != nil {
+			c.JSON(503, gin.H{"status": "error", "message": "database error", "error": err.Error()})
+			return
+		}
+		if err := sqlDB.Ping(); err != nil {
+			c.JSON(503, gin.H{"status": "error", "message": "database unreachable", "error": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{
+			"status":   "ok",
+			"database": "connected",
+			"version":  "1.0.0",
+		})
+	})
 
 	// Auth routes (public)
 	r.POST("/auth/login", authHandler.Login)
