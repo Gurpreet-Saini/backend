@@ -16,13 +16,19 @@ func NewCenterRepository(db *gorm.DB) *CenterRepository {
 
 func (r *CenterRepository) FindAll() ([]models.Center, error) {
 	var centers []models.Center
-	err := r.db.Preload("Departments").Find(&centers).Error
+	err := r.db.Select("id", "name", "location", "created_at", "updated_at").
+		Preload("Departments", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "center_id", "name", "description")
+		}).Find(&centers).Error
 	return centers, err
 }
 
 func (r *CenterRepository) FindByID(id uint) (*models.Center, error) {
 	var center models.Center
-	err := r.db.Preload("Departments").First(&center, id).Error
+	err := r.db.Select("id", "name", "location", "created_at", "updated_at").
+		Preload("Departments", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "center_id", "name", "description")
+		}).First(&center, id).Error
 	return &center, err
 }
 
@@ -50,19 +56,26 @@ func NewDepartmentRepository(db *gorm.DB) *DepartmentRepository {
 
 func (r *DepartmentRepository) FindAll() ([]models.Department, error) {
 	var depts []models.Department
-	err := r.db.Preload("Center").Find(&depts).Error
+	err := r.db.Select("id", "center_id", "name", "description", "created_at", "updated_at").
+		Preload("Center", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "location")
+		}).Find(&depts).Error
 	return depts, err
 }
 
 func (r *DepartmentRepository) FindByID(id uint) (*models.Department, error) {
 	var dept models.Department
-	err := r.db.Preload("Center").First(&dept, id).Error
+	err := r.db.Select("id", "center_id", "name", "description", "created_at", "updated_at").
+		Preload("Center", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "location")
+		}).First(&dept, id).Error
 	return &dept, err
 }
 
 func (r *DepartmentRepository) FindByCenterID(centerID uint) ([]models.Department, error) {
 	var depts []models.Department
-	err := r.db.Where("center_id = ?", centerID).Find(&depts).Error
+	err := r.db.Select("id", "center_id", "name", "description", "created_at", "updated_at").
+		Where("center_id = ?", centerID).Find(&depts).Error
 	return depts, err
 }
 

@@ -42,7 +42,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	var user models.User
-	if err := h.db.Preload("Department").Where("username = ?", req.Username).First(&user).Error; err != nil {
+	if err := h.db.Select("id", "username", "password_hash", "role", "department_id", "created_at", "updated_at").
+		Preload("Department", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "center_id", "name", "description")
+		}).
+		Where("username = ?", req.Username).First(&user).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
@@ -79,7 +83,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	var user models.User
-	if err := h.db.Preload("Department").First(&user, userID).Error; err != nil {
+	if err := h.db.Select("id", "username", "password_hash", "role", "department_id", "created_at", "updated_at").
+		Preload("Department", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "center_id", "name", "description")
+		}).
+		First(&user, userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}

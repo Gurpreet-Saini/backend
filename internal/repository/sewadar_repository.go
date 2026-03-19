@@ -19,7 +19,13 @@ func NewSewadarRepository(db *gorm.DB) *SewadarRepository {
 
 func (r *SewadarRepository) FindAll(deptID *uint) ([]models.Sewadar, error) {
 	var sewadars []models.Sewadar
-	q := r.db.Preload("Department").Preload("Department.Center")
+	q := r.db.Select("id", "employee_id", "name", "parent_spouse_name", "gender", "badge_status", "department_id", "phone", "email", "created_at", "updated_at").
+		Preload("Department", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "center_id", "name", "description")
+		}).
+		Preload("Department.Center", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "location")
+		})
 	if deptID != nil {
 		q = q.Where("department_id = ?", *deptID)
 	}
@@ -29,19 +35,27 @@ func (r *SewadarRepository) FindAll(deptID *uint) ([]models.Sewadar, error) {
 
 func (r *SewadarRepository) FindByID(id uint) (*models.Sewadar, error) {
 	var s models.Sewadar
-	err := r.db.Preload("Department").First(&s, id).Error
+	err := r.db.Select("id", "employee_id", "name", "parent_spouse_name", "gender", "badge_status", "department_id", "phone", "email", "created_at", "updated_at").
+		Preload("Department", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "center_id", "name", "description")
+		}).
+		First(&s, id).Error
 	return &s, err
 }
 
 func (r *SewadarRepository) FindBySewadarID(empID string) (*models.Sewadar, error) {
 	var s models.Sewadar
-	err := r.db.Where("sewadar_id = ?", empID).First(&s).Error
+	err := r.db.Select("id", "employee_id", "name", "parent_spouse_name", "gender", "badge_status", "department_id", "phone", "email", "created_at", "updated_at").
+		Where("employee_id = ?", empID).First(&s).Error
 	return &s, err
 }
 
 func (r *SewadarRepository) Search(query string, deptID *uint) ([]models.Sewadar, error) {
 	var sewadars []models.Sewadar
-	q := r.db.Preload("Department")
+	q := r.db.Select("id", "employee_id", "name", "parent_spouse_name", "gender", "badge_status", "department_id", "phone", "email", "created_at", "updated_at").
+		Preload("Department", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "center_id", "name", "description")
+		})
 	if query != "" {
 		pattern := fmt.Sprintf("%%%s%%", strings.ToLower(query))
 		q = q.Where("LOWER(name) LIKE ? OR LOWER(employee_id) LIKE ?", pattern, pattern)

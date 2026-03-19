@@ -25,7 +25,16 @@ type AttendanceFilter struct {
 
 func (r *AttendanceRepository) FindAll(filter AttendanceFilter) ([]models.Attendance, error) {
 	var records []models.Attendance
-	q := r.db.Preload("Sewadar").Preload("Department").Preload("MarkedByUser")
+	q := r.db.Select("id", "sewadar_id", "department_id", "date", "check_in", "check_out", "marked_by", "created_at", "updated_at").
+		Preload("Sewadar", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "employee_id")
+		}).
+		Preload("Department", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name")
+		}).
+		Preload("MarkedByUser", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "username")
+		})
 	if filter.DepartmentID != nil {
 		q = q.Where("department_id = ?", *filter.DepartmentID)
 	}
@@ -44,13 +53,21 @@ func (r *AttendanceRepository) FindAll(filter AttendanceFilter) ([]models.Attend
 
 func (r *AttendanceRepository) FindByID(id uint) (*models.Attendance, error) {
 	var a models.Attendance
-	err := r.db.Preload("Sewadar").Preload("Department").First(&a, id).Error
+	err := r.db.Select("id", "sewadar_id", "department_id", "date", "check_in", "check_out", "marked_by", "created_at", "updated_at").
+		Preload("Sewadar", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "employee_id")
+		}).
+		Preload("Department", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name")
+		}).
+		First(&a, id).Error
 	return &a, err
 }
 
 func (r *AttendanceRepository) FindBySewadarAndDate(sewadarID uint, date time.Time) (*models.Attendance, error) {
 	var a models.Attendance
-	err := r.db.Where("sewadar_id = ? AND date = ?", sewadarID, date.Format("2006-01-02")).First(&a).Error
+	err := r.db.Select("id", "sewadar_id", "department_id", "date", "check_in", "check_out", "marked_by", "created_at", "updated_at").
+		Where("sewadar_id = ? AND date = ?", sewadarID, date.Format("2006-01-02")).First(&a).Error
 	if err != nil {
 		return nil, err
 	}
