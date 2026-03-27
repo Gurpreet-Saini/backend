@@ -27,6 +27,16 @@ func (h *AttendanceHandler) List(c *gin.Context) {
 	userDept := middleware.GetUserDeptID(c)
 
 	filter := repository.AttendanceFilter{}
+	if role == models.RoleSuperAdmin {
+		if centerIDStr := c.Query("center_id"); centerIDStr != "" {
+			id, _ := strconv.Atoi(centerIDStr)
+			uid := uint(id)
+			filter.CenterID = &uid
+		}
+	} else {
+		filter.CenterID = middleware.GetUserCenterID(c)
+	}
+
 	if deptIDStr := c.Query("department_id"); deptIDStr != "" {
 		id, _ := strconv.Atoi(deptIDStr)
 		uid := uint(id)
@@ -107,6 +117,17 @@ func (h *AttendanceHandler) Update(c *gin.Context) {
 
 func (h *AttendanceHandler) Export(c *gin.Context) {
 	filter := repository.AttendanceFilter{}
+	role := middleware.GetUserRole(c)
+	if role == models.RoleSuperAdmin {
+		if centerIDStr := c.Query("center_id"); centerIDStr != "" {
+			id, _ := strconv.Atoi(centerIDStr)
+			uid := uint(id)
+			filter.CenterID = &uid
+		}
+	} else {
+		filter.CenterID = middleware.GetUserCenterID(c)
+	}
+
 	if deptIDStr := c.Query("department_id"); deptIDStr != "" {
 		id, _ := strconv.Atoi(deptIDStr)
 		uid := uint(id)
@@ -135,10 +156,20 @@ func (h *AttendanceHandler) Export(c *gin.Context) {
 }
 
 func (h *AttendanceHandler) Dashboard(c *gin.Context) {
-	var totalSewadars int64
-	sewadars, _ := h.sewadarSvc.GetAll(nil)
-	totalSewadars = int64(len(sewadars))
-	stats, err := h.svc.GetDashboardStats(totalSewadars)
+	role := middleware.GetUserRole(c)
+	var centerFilter *uint
+	if role == models.RoleSuperAdmin {
+		if centerIDStr := c.Query("center_id"); centerIDStr != "" {
+			id, _ := strconv.Atoi(centerIDStr)
+			uid := uint(id)
+			centerFilter = &uid
+		}
+	} else {
+		centerFilter = middleware.GetUserCenterID(c)
+	}
+
+	_, totalSewadars, _ := h.sewadarSvc.FindAll(nil, centerFilter, 1, 1)
+	stats, err := h.svc.GetDashboardStats(totalSewadars, centerFilter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

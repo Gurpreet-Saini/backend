@@ -12,10 +12,11 @@ import (
 )
 
 type Claims struct {
-	UserID   uint             `json:"user_id"`
-	Username string           `json:"username"`
-	Role     models.UserRole  `json:"role"`
-	DeptID   *uint            `json:"dept_id,omitempty"`
+	UserID   uint            `json:"user_id"`
+	Username string          `json:"username"`
+	Role     models.UserRole `json:"role"`
+	CenterID *uint           `json:"center_id,omitempty"`
+	DeptID   *uint           `json:"dept_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -24,9 +25,10 @@ func GenerateToken(user *models.User, secret string) (string, error) {
 		UserID:   user.ID,
 		Username: user.Username,
 		Role:     user.Role,
+		CenterID: user.CenterID,
 		DeptID:   user.DepartmentID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(3 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
@@ -55,6 +57,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
 		c.Set("role", string(claims.Role))
+		c.Set("center_id", claims.CenterID)
 		c.Set("dept_id", claims.DeptID)
 		c.Next()
 	}
@@ -63,6 +66,10 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 func RequireRole(roles ...models.UserRole) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role := models.UserRole(c.GetString("role"))
+		if role == models.RoleSuperAdmin {
+			c.Next()
+			return
+		}
 		for _, r := range roles {
 			if r == role {
 				c.Next()
@@ -88,6 +95,14 @@ func GetUserRole(c *gin.Context) models.UserRole {
 
 func GetUserDeptID(c *gin.Context) *uint {
 	val, _ := c.Get("dept_id")
+	if id, ok := val.(*uint); ok {
+		return id
+	}
+	return nil
+}
+
+func GetUserCenterID(c *gin.Context) *uint {
+	val, _ := c.Get("center_id")
 	if id, ok := val.(*uint); ok {
 		return id
 	}

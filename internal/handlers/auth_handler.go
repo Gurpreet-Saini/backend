@@ -42,7 +42,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	var user models.User
-	if err := h.db.Select("id", "username", "password_hash", "role", "department_id", "created_at", "updated_at").
+	if err := h.db.Select("id", "username", "password_hash", "role", "center_id", "department_id", "created_at", "updated_at").
+		Preload("Center", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "location")
+		}).
 		Preload("Department", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "center_id", "name", "description")
 		}).
@@ -65,6 +68,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"id":          user.ID,
 			"username":    user.Username,
 			"role":        user.Role,
+			"center_id":   user.CenterID,
+			"center":      user.Center,
 			"department":  user.Department,
 		},
 	})
@@ -83,7 +88,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	var user models.User
-	if err := h.db.Select("id", "username", "password_hash", "role", "department_id", "created_at", "updated_at").
+	if err := h.db.Select("id", "username", "password_hash", "role", "center_id", "department_id", "created_at", "updated_at").
+		Preload("Center", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "location")
+		}).
 		Preload("Department", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "center_id", "name", "description")
 		}).
@@ -95,6 +103,8 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		"id":         user.ID,
 		"username":   user.Username,
 		"role":       user.Role,
+		"center_id":  user.CenterID,
+		"center":     user.Center,
 		"department": user.Department,
 	})
 }

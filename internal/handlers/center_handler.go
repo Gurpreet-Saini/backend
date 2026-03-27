@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"attendancemgmt/backend/internal/middleware"
 	"attendancemgmt/backend/internal/models"
 	"attendancemgmt/backend/internal/repository"
 
@@ -79,7 +80,20 @@ func NewDepartmentHandler(repo *repository.DepartmentRepository) *DepartmentHand
 }
 
 func (h *DepartmentHandler) List(c *gin.Context) {
-	depts, err := h.repo.FindAll()
+	role := middleware.GetUserRole(c)
+	var centerFilter *uint
+
+	if role == models.RoleSuperAdmin {
+		if centerIDStr := c.Query("center_id"); centerIDStr != "" {
+			id, _ := strconv.Atoi(centerIDStr)
+			uid := uint(id)
+			centerFilter = &uid
+		}
+	} else {
+		centerFilter = middleware.GetUserCenterID(c)
+	}
+
+	depts, err := h.repo.FindAll(centerFilter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -112,8 +126,17 @@ func (h *DepartmentHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	role := models.UserRole(c.GetString("role"))
+	if role != models.RoleSuperAdmin {
+		centerID := middleware.GetUserCenterID(c)
+		if centerID != nil {
+			dept.CenterID = *centerID
+		}
+	}
+
 	if dept.CenterID == 0 {
-		dept.CenterID = 1
+		c.JSON(http.StatusBadRequest, gin.H{"error": "center_id is required"})
+		return
 	}
 	if err := h.repo.Create(&dept); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

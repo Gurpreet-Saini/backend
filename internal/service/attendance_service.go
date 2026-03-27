@@ -81,21 +81,30 @@ type DashboardStats struct {
 	TotalSewadars   int64                    `json:"total_sewadars"`
 	TodayAttendance int64                    `json:"today_attendance"`
 	TodayByDept     []map[string]interface{} `json:"today_by_dept"`
+	TodayByCenter   []map[string]interface{} `json:"today_by_center"`
 }
 
-func (s *AttendanceService) GetDashboardStats(sewadarCount int64) (*DashboardStats, error) {
-	todayCount, err := s.repo.CountToday()
+func (s *AttendanceService) GetDashboardStats(sewadarCount int64, centerID *uint) (*DashboardStats, error) {
+	todayCount, err := s.repo.CountToday(centerID)
 	if err != nil {
 		return nil, err
 	}
-	byDept, err := s.repo.TodayByDept()
+	byDept, err := s.repo.TodayByDept(centerID)
 	if err != nil {
 		return nil, err
+	}
+	var byCenter []map[string]interface{}
+	if centerID == nil {
+		byCenter, err = s.repo.TodayByCenter()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &DashboardStats{
 		TotalSewadars:   sewadarCount,
 		TodayAttendance: todayCount,
 		TodayByDept:     byDept,
+		TodayByCenter:   byCenter,
 	}, nil
 }
 
@@ -108,7 +117,7 @@ func (s *AttendanceService) ExportExcel(filter repository.AttendanceFilter) ([]b
 	f := excelize.NewFile()
 	sheet := "Attendance"
 	f.SetSheetName("Sheet1", sheet)
-	headers := []string{"Employee ID", "Sewadar Name", "Department", "Date", "Check-In", "Check-Out"}
+	headers := []string{"Sewadar ID", "Sewadar Name", "Department", "Date", "Check-In", "Check-Out"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)

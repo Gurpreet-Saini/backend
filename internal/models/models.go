@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"github.com/google/uuid"
 )
 
 type Center struct {
@@ -31,10 +32,13 @@ type Department struct {
 type Sewadar struct {
 	ID               uint           `json:"id" gorm:"primaryKey"`
 	SewadarCode      string         `json:"sewadar_id" gorm:"column:employee_id;uniqueIndex;not null"`
+	UUID             string         `json:"uuid" gorm:"uniqueIndex"`
 	Name             string         `json:"name" gorm:"not null"`
 	ParentSpouseName string         `json:"parent_spouse_name"`
 	Gender           string         `json:"gender"`
 	BadgeStatus      string         `json:"badge_status"`
+	CenterID         uint           `json:"center_id" gorm:"not null;default:1"`
+	Center           *Center        `json:"center,omitempty" gorm:"foreignKey:CenterID"`
 	DepartmentID     *uint          `json:"department_id"`
 	Department       *Department    `json:"department,omitempty" gorm:"foreignKey:DepartmentID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Phone            string         `json:"phone"`
@@ -43,6 +47,13 @@ type Sewadar struct {
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
 	DeletedAt        gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+func (s *Sewadar) BeforeCreate(tx *gorm.DB) (err error) {
+	if s.UUID == "" {
+		s.UUID = uuid.New().String()
+	}
+	return
 }
 
 type Attendance struct {
@@ -63,6 +74,7 @@ type Attendance struct {
 type UserRole string
 
 const (
+	RoleSuperAdmin  UserRole = "super_admin"
 	RoleCenterAdmin UserRole = "center_admin"
 	RoleOperator    UserRole = "operator"
 	RoleDeptViewer  UserRole = "dept_viewer"
@@ -73,6 +85,8 @@ type User struct {
 	Username     string     `json:"username" gorm:"uniqueIndex;not null"`
 	PasswordHash string     `json:"-" gorm:"not null"`
 	Role         UserRole   `json:"role" gorm:"not null;default:'operator'"`
+	CenterID     *uint      `json:"center_id"`
+	Center       *Center    `json:"center,omitempty" gorm:"foreignKey:CenterID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	DepartmentID *uint      `json:"department_id"` // scoped for operator/viewer
 	Department   *Department `json:"department,omitempty" gorm:"foreignKey:DepartmentID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	CreatedAt    time.Time  `json:"created_at"`

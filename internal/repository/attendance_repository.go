@@ -17,6 +17,7 @@ func NewAttendanceRepository(db *gorm.DB) *AttendanceRepository {
 }
 
 type AttendanceFilter struct {
+	CenterID     *uint
 	DepartmentID *uint
 	SewadarID    *uint
 	DateFrom     *time.Time
@@ -25,7 +26,7 @@ type AttendanceFilter struct {
 
 func (r *AttendanceRepository) FindAll(filter AttendanceFilter) ([]models.Attendance, error) {
 	var records []models.Attendance
-	q := r.db.Select("id", "sewadar_id", "department_id", "date", "check_in", "check_out", "marked_by", "created_at", "updated_at").
+	q := r.db.Select("attendances.id", "attendances.sewadar_id", "attendances.department_id", "attendances.date", "attendances.check_in", "attendances.check_out", "attendances.marked_by", "attendances.created_at", "attendances.updated_at").
 		Preload("Sewadar", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "name", "employee_id")
 		}).
@@ -35,19 +36,22 @@ func (r *AttendanceRepository) FindAll(filter AttendanceFilter) ([]models.Attend
 		Preload("MarkedByUser", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "username")
 		})
+	if filter.CenterID != nil {
+		q = q.Joins("JOIN sewadars ON sewadars.id = attendances.sewadar_id").Where("sewadars.center_id = ?", *filter.CenterID)
+	}
 	if filter.DepartmentID != nil {
-		q = q.Where("department_id = ?", *filter.DepartmentID)
+		q = q.Where("attendances.department_id = ?", *filter.DepartmentID)
 	}
 	if filter.SewadarID != nil {
-		q = q.Where("sewadar_id = ?", *filter.SewadarID)
+		q = q.Where("attendances.sewadar_id = ?", *filter.SewadarID)
 	}
 	if filter.DateFrom != nil {
-		q = q.Where("date >= ?", *filter.DateFrom)
+		q = q.Where("attendances.date >= ?", *filter.DateFrom)
 	}
 	if filter.DateTo != nil {
-		q = q.Where("date <= ?", *filter.DateTo)
+		q = q.Where("attendances.date <= ?", *filter.DateTo)
 	}
-	err := q.Order("date DESC, check_in DESC").Find(&records).Error
+	err := q.Order("attendances.date DESC, attendances.check_in DESC").Find(&records).Error
 	return records, err
 }
 
@@ -55,7 +59,10 @@ func (r *AttendanceRepository) FindByID(id uint) (*models.Attendance, error) {
 	var a models.Attendance
 	err := r.db.Select("id", "sewadar_id", "department_id", "date", "check_in", "check_out", "marked_by", "created_at", "updated_at").
 		Preload("Sewadar", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "name", "employee_id")
+			return db.Select("id", "name", "employee_id", "center_id")
+		}).
+		Preload("Sewadar.Center", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name")
 		}).
 		Preload("Department", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "name")
@@ -82,23 +89,44 @@ func (r *AttendanceRepository) Update(a *models.Attendance) error {
 	return r.db.Save(a).Error
 }
 
-func (r *AttendanceRepository) CountToday() (int64, error) {
+func (r *AttendanceRepository) CountToday(centerID *uint) (int64, error) {
 	var count int64
 	today := time.Now().Format("2006-01-02")
-	err := r.db.Model(&models.Attendance{}).Where("date = ?", today).Count(&count).Error
+	q := r.db.Model(&models.Attendance{}).Where("attendances.date = ?", today)
+	if centerID != nil {
+		q = q.Joins("JOIN sewadars ON sewadars.id = attendances.sewadar_id").Where("sewadars.center_id = ?", *centerID)
+	}
+	err := q.Count(&count).Error
 	return count, err
 }
 
-func (r *AttendanceRepository) TodayByDept() ([]map[string]interface{}, error) {
+func (r *AttendanceRepository) TodayByDept(centerID *uint) ([]map[string]interface{}, error) {
 	today := time.Now().Format("2006-01-02")
 	var results []map[string]interface{}
-	err := r.db.Raw(`
-		SELECT d.id, d.name, COUNT(a.id) as count
-		FROM departments d
-		LEFT JOIN attendances a ON a.department_id = d.id AND a.date = ?
-		WHERE d.deleted_at IS NULL
-		GROUP BY d.id, d.name
-		ORDER BY d.name
-	`, today).Scan(&results).Error
+	
+	q := r.db.Table("departments d").
+		Select("d.id, d.name, COUNT(a.id) as count").
+		Joins("LEFT JOIN attendances a ON a.department_id = d.id AND a.date = ?", today).
+		Where("d.deleted_at IS NULL")
+		
+	if centerID != nil {
+		q = q.Where("d.center_id = ?", *centerID)
+	}
+	
+	err := q.Group("d.id, d.name").Order("d.name").Scan(&results).Error
 	return results, err
 }
+
+func (r *AttendanceRepository) TodayByCenter() ([]map[string]interface{}, error) {
+	today := time.Now().Format("2006-01-02")
+	var results []map[string]interface{}
+	err := r.db.Table("centers c").
+		Select("c.id, c.name, COUNT(a.id) as count").
+		Joins("LEFT JOIN sewadars s ON s.center_id = c.id AND s.deleted_at IS NULL").
+		Joins("LEFT JOIN attendances a ON a.sewadar_id = s.id AND a.date = ?", today).
+		Where("c.deleted_at IS NULL").
+		Group("c.id, c.name").Order("c.name").
+		Scan(&results).Error
+	return results, err
+}
+

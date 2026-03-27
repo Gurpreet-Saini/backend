@@ -54,12 +54,15 @@ func NewDepartmentRepository(db *gorm.DB) *DepartmentRepository {
 	return &DepartmentRepository{db: db}
 }
 
-func (r *DepartmentRepository) FindAll() ([]models.Department, error) {
+func (r *DepartmentRepository) FindAll(centerID *uint) ([]models.Department, error) {
 	var depts []models.Department
-	err := r.db.Select("id", "center_id", "name", "description", "created_at", "updated_at").
-		Preload("Center", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "name", "location")
-		}).Find(&depts).Error
+	q := r.db.Select("departments.id", "departments.center_id", "departments.name", "departments.description", "departments.created_at", "departments.updated_at")
+	if centerID != nil {
+		q = q.Where("departments.center_id = ?", *centerID)
+	}
+	err := q.Preload("Center", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id", "name", "location")
+	}).Find(&depts).Error
 	return depts, err
 }
 

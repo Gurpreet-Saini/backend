@@ -47,13 +47,14 @@ func main() {
 	if err := database.Migrate(db); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
-	database.Seed(db)
+	database.Seed(db, cfg.SuperAdminUsername, cfg.SuperAdminPassword)
 
 	// Repositories
 	centerRepo := repository.NewCenterRepository(db)
 	deptRepo := repository.NewDepartmentRepository(db)
 	sewadarRepo := repository.NewSewadarRepository(db)
 	attendanceRepo := repository.NewAttendanceRepository(db)
+	userRepo := repository.NewUserRepository(db)
 
 	// Services
 	sewadarSvc := service.NewSewadarService(sewadarRepo, deptRepo)
@@ -65,6 +66,7 @@ func main() {
 	deptHandler := handlers.NewDepartmentHandler(deptRepo)
 	sewadarHandler := handlers.NewSewadarHandler(sewadarSvc)
 	attendanceHandler := handlers.NewAttendanceHandler(attendanceSvc, sewadarSvc)
+	userHandler := handlers.NewUserHandler(userRepo)
 
 	r := gin.Default()
 
@@ -108,10 +110,19 @@ func main() {
 		// Centers
 		centers := api.Group("/centers")
 		{
-			centers.GET("", centerHandler.List)
-			centers.POST("", middleware.RequireRole(models.RoleCenterAdmin), centerHandler.Create)
-			centers.PUT("/:id", middleware.RequireRole(models.RoleCenterAdmin), centerHandler.Update)
-			centers.DELETE("/:id", middleware.RequireRole(models.RoleCenterAdmin), centerHandler.Delete)
+			centers.GET("", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin, models.RoleOperator), centerHandler.List)
+			centers.POST("", middleware.RequireRole(models.RoleSuperAdmin), centerHandler.Create)
+			centers.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin), centerHandler.Update)
+			centers.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin), centerHandler.Delete)
+		}
+
+		// Users
+		users := api.Group("/users")
+		{
+			users.GET("", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), userHandler.List)
+			users.POST("", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), userHandler.Create)
+			users.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin), userHandler.Update)
+			users.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin), userHandler.Delete)
 		}
 
 		// Departments
@@ -119,23 +130,23 @@ func main() {
 		{
 			depts.GET("", deptHandler.List)
 			depts.GET("/:id", deptHandler.GetByID)
-			depts.POST("", middleware.RequireRole(models.RoleCenterAdmin), deptHandler.Create)
-			depts.PUT("/:id", middleware.RequireRole(models.RoleCenterAdmin), deptHandler.Update)
-			depts.DELETE("/:id", middleware.RequireRole(models.RoleCenterAdmin), deptHandler.Delete)
+			depts.POST("", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), deptHandler.Create)
+			depts.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), deptHandler.Update)
+			depts.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), deptHandler.Delete)
 		}
 
 		// Sewadars
 		sewadars := api.Group("/sewadars")
 		{
 			sewadars.GET("", sewadarHandler.List)
-			sewadars.GET("/search", sewadarHandler.Search)
 			sewadars.GET("/export", sewadarHandler.Export)
 			sewadars.GET("/:id", sewadarHandler.GetByID)
-			sewadars.POST("", middleware.RequireRole(models.RoleCenterAdmin), sewadarHandler.Create)
-			sewadars.PUT("/:id", middleware.RequireRole(models.RoleCenterAdmin), sewadarHandler.Update)
-			sewadars.DELETE("/:id", middleware.RequireRole(models.RoleCenterAdmin), sewadarHandler.Delete)
-			sewadars.POST("/transfer", middleware.RequireRole(models.RoleCenterAdmin), sewadarHandler.Transfer)
-			sewadars.POST("/bulk-upload", middleware.RequireRole(models.RoleCenterAdmin), sewadarHandler.BulkUpload)
+			sewadars.GET("/u/:uuid", sewadarHandler.GetByUUID)
+			sewadars.POST("", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), sewadarHandler.Create)
+			sewadars.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), sewadarHandler.Update)
+			sewadars.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), sewadarHandler.Delete)
+			sewadars.POST("/transfer", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), sewadarHandler.Transfer)
+			sewadars.POST("/bulk-upload", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), sewadarHandler.BulkUpload)
 		}
 
 		// Attendance

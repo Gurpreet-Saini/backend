@@ -34,10 +34,10 @@ func Migrate(db *gorm.DB) error {
 	)
 }
 
-func Seed(db *gorm.DB) {
+func Seed(db *gorm.DB, adminUsername, adminPassword string) {
 	// Seed center
 	var center models.Center
-	if db.First(&center).Error != nil {
+	if db.Unscoped().First(&center).Error != nil {
 		center = models.Center{Name: "Main Center", Location: "Headquarters"}
 		db.Create(&center)
 		log.Println("Seeded: Main Center")
@@ -48,7 +48,7 @@ func Seed(db *gorm.DB) {
 	depts := make([]models.Department, 0, len(deptNames))
 	for _, name := range deptNames {
 		var dept models.Department
-		if db.Where("name = ?", name).First(&dept).Error != nil {
+		if db.Unscoped().Where("name = ?", name).First(&dept).Error != nil {
 			dept = models.Department{CenterID: center.ID, Name: name}
 			db.Create(&dept)
 			log.Printf("Seeded department: %s\n", name)
@@ -56,31 +56,18 @@ func Seed(db *gorm.DB) {
 		depts = append(depts, dept)
 	}
 
-	// Seed admin user
-	var adminUser models.User
-	if db.Where("username = ?", "admin").First(&adminUser).Error != nil {
-		hash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
-		adminUser = models.User{
-			Username:     "admin",
-			PasswordHash: string(hash),
-			Role:         models.RoleCenterAdmin,
+	// Seed super admin user
+	if adminUsername != "" && adminPassword != "" {
+		var superAdminUser models.User
+		if db.Unscoped().Where("username = ?", adminUsername).First(&superAdminUser).Error != nil {
+			hash, _ := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+			superAdminUser = models.User{
+				Username:     adminUsername,
+				PasswordHash: string(hash),
+				Role:         models.RoleSuperAdmin,
+			}
+			db.Create(&superAdminUser)
+			log.Printf("Seeded: superadmin user (%s)\n", adminUsername)
 		}
-		db.Create(&adminUser)
-		log.Println("Seeded: admin user (admin/admin123)")
-	}
-
-	// Seed operator user
-	var opUser models.User
-	if db.Where("username = ?", "operator1").First(&opUser).Error != nil {
-		hash, _ := bcrypt.GenerateFromPassword([]byte("operator123"), bcrypt.DefaultCost)
-		deptID := depts[0].ID
-		opUser = models.User{
-			Username:     "operator1",
-			PasswordHash: string(hash),
-			Role:         models.RoleOperator,
-			DepartmentID: &deptID,
-		}
-		db.Create(&opUser)
-		log.Println("Seeded: operator1 user (operator1/operator123)")
 	}
 }
