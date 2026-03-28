@@ -36,13 +36,25 @@ func (h *UserHandler) List(c *gin.Context) {
 }
 
 func (h *UserHandler) Create(c *gin.Context) {
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var input struct {
+		Username     string `json:"username" binding:"required"`
+		Password     string `json:"password" binding:"required"`
+		Role         string `json:"role" binding:"required"`
+		CenterID     uint   `json:"center_id"`
+		DepartmentID *uint  `json:"department_id"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	role := middleware.GetUserRole(c)
+	user := models.User{
+		Username:     input.Username,
+		Role:         models.UserRole(input.Role),
+		CenterID:     &input.CenterID,
+		DepartmentID: input.DepartmentID,
+	}
 	
 	// CenterAdmin cannot create SuperAdmin or CenterAdmin, only Operator. CenterAdmin cannot assign user to different center.
 	switch role {
@@ -50,13 +62,15 @@ func (h *UserHandler) Create(c *gin.Context) {
 		user.Role = models.RoleOperator
 		user.CenterID = middleware.GetUserCenterID(c)
 	case models.RoleSuperAdmin:
-		// SuperAdmin can set role and center_id based on JSON body. However, if center_id is not set and role is restricted, we allow it.
+		if input.CenterID == 0 {
+			user.CenterID = nil
+		}
 	default:
 		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(user.PasswordHash), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not hash password"})
 		return
