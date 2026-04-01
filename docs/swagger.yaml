@@ -1,5 +1,24 @@
 basePath: /
 definitions:
+  handlers.CheckInReq:
+    properties:
+      department_id:
+        type: integer
+      sewadar_id:
+        type: integer
+    required:
+    - sewadar_id
+    type: object
+  handlers.FeedbackRequest:
+    properties:
+      message:
+        type: string
+      subject:
+        type: string
+    required:
+    - message
+    - subject
+    type: object
   handlers.LoginRequest:
     properties:
       password:
@@ -75,12 +94,37 @@ definitions:
       updated_at:
         type: string
     type: object
+  models.Feedback:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_read:
+        type: boolean
+      message:
+        type: string
+      subject:
+        type: string
+      updated_at:
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
+      user_id:
+        type: integer
+    type: object
   models.Sewadar:
     properties:
       attendance:
         items:
           $ref: '#/definitions/models.Attendance'
         type: array
+      badge_status:
+        type: string
+      center:
+        $ref: '#/definitions/models.Center'
+      center_id:
+        type: integer
       created_at:
         type: string
       department:
@@ -89,19 +133,29 @@ definitions:
         type: integer
       email:
         type: string
-      employee_id:
+      gender:
         type: string
       id:
         type: integer
       name:
         type: string
+      parent_spouse_name:
+        type: string
       phone:
         type: string
+      sewadar_id:
+        type: string
       updated_at:
+        type: string
+      uuid:
         type: string
     type: object
   models.User:
     properties:
+      center:
+        $ref: '#/definitions/models.Center'
+      center_id:
+        type: integer
       created_at:
         type: string
       department:
@@ -120,11 +174,13 @@ definitions:
     type: object
   models.UserRole:
     enum:
+    - super_admin
     - center_admin
     - operator
     - dept_viewer
     type: string
     x-enum-varnames:
+    - RoleSuperAdmin
     - RoleCenterAdmin
     - RoleOperator
     - RoleDeptViewer
@@ -142,6 +198,657 @@ info:
   title: Attendance Management System API
   version: "1.0"
 paths:
+  /api/attendance:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of attendance records with filtering
+      parameters:
+      - description: Center ID filter
+        in: query
+        name: center_id
+        type: integer
+      - description: Department ID filter
+        in: query
+        name: department_id
+        type: integer
+      - description: Sewadar ID filter
+        in: query
+        name: sewadar_id
+        type: integer
+      - description: Date from (YYYY-MM-DD)
+        in: query
+        name: date_from
+        type: string
+      - description: Date to (YYYY-MM-DD)
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Attendance'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List attendance records
+      tags:
+      - attendance
+  /api/attendance/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Update an existing attendance record (CenterAdmin only)
+      parameters:
+      - description: Attendance ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated attendance details
+        in: body
+        name: attendance
+        required: true
+        schema:
+          $ref: '#/definitions/models.Attendance'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Attendance'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update attendance record
+      tags:
+      - attendance
+  /api/attendance/{id}/check-out:
+    put:
+      consumes:
+      - application/json
+      description: Mark attendance as checked-out for a sewadar
+      parameters:
+      - description: Attendance ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Attendance'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Check-out a sewadar
+      tags:
+      - attendance
+  /api/attendance/check-in:
+    post:
+      consumes:
+      - application/json
+      description: Mark attendance as checked-in for a sewadar
+      parameters:
+      - description: Check-in details
+        in: body
+        name: checkin
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CheckInReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Attendance'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Check-in a sewadar
+      tags:
+      - attendance
+  /api/attendance/export:
+    get:
+      consumes:
+      - application/json
+      description: Export filtered attendance records to an Excel file
+      parameters:
+      - description: Center ID filter
+        in: query
+        name: center_id
+        type: integer
+      - description: Department ID filter
+        in: query
+        name: department_id
+        type: integer
+      - description: Date from (YYYY-MM-DD)
+        in: query
+        name: date_from
+        type: string
+      - description: Date to (YYYY-MM-DD)
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        "200":
+          description: Excel file
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Export attendance to Excel
+      tags:
+      - attendance
+  /api/centers:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all centers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Center'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all centers
+      tags:
+      - centers
+    post:
+      consumes:
+      - application/json
+      description: Create a new center (SuperAdmin only)
+      parameters:
+      - description: Center details
+        in: body
+        name: center
+        required: true
+        schema:
+          $ref: '#/definitions/models.Center'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Center'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a center
+      tags:
+      - centers
+  /api/centers/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a center and its associated data (SuperAdmin only)
+      parameters:
+      - description: Center ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a center
+      tags:
+      - centers
+    put:
+      consumes:
+      - application/json
+      description: Update an existing center (SuperAdmin only)
+      parameters:
+      - description: Center ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated center details
+        in: body
+        name: center
+        required: true
+        schema:
+          $ref: '#/definitions/models.Center'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Center'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a center
+      tags:
+      - centers
+  /api/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Get summaries of attendance and sewadars for the dashboard
+      parameters:
+      - description: Center ID filter
+        in: query
+        name: center_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get dashboard statistics
+      tags:
+      - dashboard
+  /api/departments:
+    post:
+      consumes:
+      - application/json
+      description: Create a new department (Admin/SuperAdmin only)
+      parameters:
+      - description: Department details
+        in: body
+        name: department
+        required: true
+        schema:
+          $ref: '#/definitions/models.Department'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Department'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a department
+      tags:
+      - departments
+  /api/departments/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a department (Admin/SuperAdmin only)
+      parameters:
+      - description: Department ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a department
+      tags:
+      - departments
+    get:
+      consumes:
+      - application/json
+      description: Get details of a specific department
+      parameters:
+      - description: Department ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Department'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get department by ID
+      tags:
+      - departments
+    put:
+      consumes:
+      - application/json
+      description: Update an existing department (Admin/SuperAdmin only)
+      parameters:
+      - description: Department ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated department details
+        in: body
+        name: department
+        required: true
+        schema:
+          $ref: '#/definitions/models.Department'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Department'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a department
+      tags:
+      - departments
+  /api/feedback:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all feedback messages (SuperAdmin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Feedback'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all feedback
+      tags:
+      - feedback
+    post:
+      consumes:
+      - application/json
+      description: Submit a new feedback message from an authenticated user
+      parameters:
+      - description: Feedback details
+        in: body
+        name: feedback
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.FeedbackRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Feedback'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit feedback
+      tags:
+      - feedback
+  /api/feedback/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a specific feedback message (SuperAdmin only)
+      parameters:
+      - description: Feedback ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete feedback
+      tags:
+      - feedback
+  /api/feedback/{id}/read:
+    put:
+      consumes:
+      - application/json
+      description: Update the status of a feedback message to read (SuperAdmin only)
+      parameters:
+      - description: Feedback ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark feedback as read
+      tags:
+      - feedback
   /api/me:
     get:
       consumes:
@@ -165,6 +872,490 @@ paths:
       summary: Get current user
       tags:
       - auth
+  /api/sewadars:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of sewadars with filtering and pagination
+      parameters:
+      - description: Search query (name or ID)
+        in: query
+        name: q
+        type: string
+      - description: Center ID filter
+        in: query
+        name: center_id
+        type: integer
+      - description: Department ID filter
+        in: query
+        name: department_id
+        type: integer
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List sewadars
+      tags:
+      - sewadars
+    post:
+      consumes:
+      - application/json
+      description: Create a new sewadar record
+      parameters:
+      - description: Sewadar details
+        in: body
+        name: sewadar
+        required: true
+        schema:
+          $ref: '#/definitions/models.Sewadar'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Sewadar'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create sewadar
+      tags:
+      - sewadars
+  /api/sewadars/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a sewadar record
+      parameters:
+      - description: Sewadar ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete sewadar
+      tags:
+      - sewadars
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information of a sewadar by their internal ID
+      parameters:
+      - description: Sewadar ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Sewadar'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get sewadar by ID
+      tags:
+      - sewadars
+    put:
+      consumes:
+      - application/json
+      description: Update an existing sewadar record
+      parameters:
+      - description: Sewadar ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated sewadar details
+        in: body
+        name: sewadar
+        required: true
+        schema:
+          $ref: '#/definitions/models.Sewadar'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Sewadar'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update sewadar
+      tags:
+      - sewadars
+  /api/sewadars/bulk-upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload an Excel file to create multiple sewadar records
+      parameters:
+      - description: Excel file (.xlsx)
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Center ID (for SuperAdmin)
+        in: formData
+        name: center_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bulk upload sewadars
+      tags:
+      - sewadars
+  /api/sewadars/export:
+    get:
+      consumes:
+      - application/json
+      description: Export sewadar records to an Excel file
+      parameters:
+      - description: Center ID filter
+        in: query
+        name: center_id
+        type: integer
+      - description: Department ID filter
+        in: query
+        name: department_id
+        type: integer
+      produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        "200":
+          description: Excel file
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Export sewadars to Excel
+      tags:
+      - sewadars
+  /api/sewadars/transfer:
+    post:
+      consumes:
+      - application/json
+      description: Transfer a sewadar to a different department
+      parameters:
+      - description: Transfer details (sewadar_id, department_id)
+        in: body
+        name: transfer
+        required: true
+        schema:
+          additionalProperties:
+            type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Transfer sewadar
+      tags:
+      - sewadars
+  /api/sewadars/u/{uuid}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information of a sewadar by their unique UUID
+      parameters:
+      - description: Sewadar UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Sewadar'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get sewadar by UUID
+      tags:
+      - sewadars
+  /api/users:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all users, optionally filtered by center (Admin/SuperAdmin
+        only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.User'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Create a new user record (Admin/SuperAdmin only)
+      parameters:
+      - description: User details (username, password, role, center_id, department_id)
+        in: body
+        name: user
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a user
+      tags:
+      - users
+  /api/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a user record (SuperAdmin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a user
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update an existing user record (SuperAdmin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated user details (password, role, center_id, department_id)
+        in: body
+        name: user
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a user
+      tags:
+      - users
   /auth/login:
     post:
       consumes:

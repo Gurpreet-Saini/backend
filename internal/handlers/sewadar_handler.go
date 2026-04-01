@@ -19,6 +19,21 @@ func NewSewadarHandler(svc *service.SewadarService) *SewadarHandler {
 	return &SewadarHandler{svc: svc}
 }
 
+// List godoc
+// @Summary List sewadars
+// @Description Get a list of sewadars with filtering and pagination
+// @Tags sewadars
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param q query string false "Search query (name or ID)"
+// @Param center_id query int false "Center ID filter"
+// @Param department_id query int false "Department ID filter"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Router /api/sewadars [get]
 func (h *SewadarHandler) List(c *gin.Context) {
 	role := middleware.GetUserRole(c)
 	var deptFilter *uint
@@ -74,6 +89,18 @@ func (h *SewadarHandler) List(c *gin.Context) {
 	})
 }
 
+// GetByID godoc
+// @Summary Get sewadar by ID
+// @Description Get detailed information of a sewadar by their internal ID
+// @Tags sewadars
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Sewadar ID"
+// @Success 200 {object} models.Sewadar
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/sewadars/{id} [get]
 func (h *SewadarHandler) GetByID(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	s, err := h.svc.GetByID(uint(id))
@@ -84,6 +111,18 @@ func (h *SewadarHandler) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, s)
 }
 
+// GetByUUID godoc
+// @Summary Get sewadar by UUID
+// @Description Get detailed information of a sewadar by their unique UUID
+// @Tags sewadars
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param uuid path string true "Sewadar UUID"
+// @Success 200 {object} models.Sewadar
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/sewadars/u/{uuid} [get]
 func (h *SewadarHandler) GetByUUID(c *gin.Context) {
 	uuid := c.Param("uuid")
 	s, err := h.svc.GetByUUID(uuid)
@@ -94,6 +133,18 @@ func (h *SewadarHandler) GetByUUID(c *gin.Context) {
 	c.JSON(http.StatusOK, s)
 }
 
+// Create godoc
+// @Summary Create sewadar
+// @Description Create a new sewadar record
+// @Tags sewadars
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param sewadar body models.Sewadar true "Sewadar details"
+// @Success 201 {object} models.Sewadar
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/sewadars [post]
 func (h *SewadarHandler) Create(c *gin.Context) {
 	var s models.Sewadar
 	if err := c.ShouldBindJSON(&s); err != nil {
@@ -121,6 +172,20 @@ func (h *SewadarHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, s)
 }
 
+// Update godoc
+// @Summary Update sewadar
+// @Description Update an existing sewadar record
+// @Tags sewadars
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Sewadar ID"
+// @Param sewadar body models.Sewadar true "Updated sewadar details"
+// @Success 200 {object} models.Sewadar
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/sewadars/{id} [put]
 func (h *SewadarHandler) Update(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	s, err := h.svc.GetByID(uint(id))
@@ -157,6 +222,17 @@ func (h *SewadarHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, s)
 }
 
+// Delete godoc
+// @Summary Delete sewadar
+// @Description Delete a sewadar record
+// @Tags sewadars
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Sewadar ID"
+// @Success 200 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/sewadars/{id} [delete]
 func (h *SewadarHandler) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if err := h.svc.Delete(uint(id)); err != nil {
@@ -166,6 +242,18 @@ func (h *SewadarHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
+// Transfer godoc
+// @Summary Transfer sewadar
+// @Description Transfer a sewadar to a different department
+// @Tags sewadars
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param transfer body map[string]int true "Transfer details (sewadar_id, department_id)"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/sewadars/transfer [post]
 func (h *SewadarHandler) Transfer(c *gin.Context) {
 	var req struct {
 		SewadarID    uint `json:"sewadar_id" binding:"required"`
@@ -194,6 +282,19 @@ func (h *SewadarHandler) Transfer(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "sewadar transferred successfully"})
 }
 
+// BulkUpload godoc
+// @Summary Bulk upload sewadars
+// @Description Upload an Excel file to create multiple sewadar records
+// @Tags sewadars
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "Excel file (.xlsx)"
+// @Param center_id formData int false "Center ID (for SuperAdmin)"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/sewadars/bulk-upload [post]
 func (h *SewadarHandler) BulkUpload(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -236,6 +337,18 @@ func (h *SewadarHandler) BulkUpload(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "sewadars created", "count": len(sewadars)})
 }
 
+// Export godoc
+// @Summary Export sewadars to Excel
+// @Description Export sewadar records to an Excel file
+// @Tags sewadars
+// @Accept json
+// @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Security BearerAuth
+// @Param center_id query int false "Center ID filter"
+// @Param department_id query int false "Department ID filter"
+// @Success 200 {file} file "Excel file"
+// @Failure 401 {object} map[string]string
+// @Router /api/sewadars/export [get]
 func (h *SewadarHandler) Export(c *gin.Context) {
 	var deptFilter *uint
 	if deptIDStr := c.Query("department_id"); deptIDStr != "" {

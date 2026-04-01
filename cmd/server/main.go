@@ -67,6 +67,8 @@ func main() {
 	sewadarHandler := handlers.NewSewadarHandler(sewadarSvc)
 	attendanceHandler := handlers.NewAttendanceHandler(attendanceSvc, sewadarSvc)
 	userHandler := handlers.NewUserHandler(userRepo)
+	feedbackRepo := repository.NewFeedbackRepository(db)
+	feedbackHandler := handlers.NewFeedbackHandler(feedbackRepo)
 
 	r := gin.Default()
 
@@ -157,6 +159,15 @@ func main() {
 			attendance.PUT("/:id/check-out", middleware.RequireRole(models.RoleCenterAdmin, models.RoleOperator), attendanceHandler.CheckOut)
 			attendance.PUT("/:id", middleware.RequireRole(models.RoleCenterAdmin), attendanceHandler.Update)
 			attendance.GET("/export", middleware.RequireRole(models.RoleCenterAdmin, models.RoleOperator), attendanceHandler.Export)
+		}
+
+		// Feedback
+		feedback := api.Group("/feedback")
+		{
+			feedback.POST("", feedbackHandler.Submit)
+			feedback.GET("", middleware.RequireRole(models.RoleSuperAdmin), feedbackHandler.List)
+			feedback.PUT("/:id/read", middleware.RequireRole(models.RoleSuperAdmin), feedbackHandler.MarkAsRead)
+			feedback.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin), feedbackHandler.Delete)
 		}
 	}
 

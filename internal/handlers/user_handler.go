@@ -20,6 +20,16 @@ func NewUserHandler(repo *repository.UserRepository) *UserHandler {
 	return &UserHandler{repo: repo}
 }
 
+// List godoc
+// @Summary List all users
+// @Description Get a list of all users, optionally filtered by center (Admin/SuperAdmin only)
+// @Tags users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} models.User
+// @Failure 401 {object} map[string]string
+// @Router /api/users [get]
 func (h *UserHandler) List(c *gin.Context) {
 	role := middleware.GetUserRole(c)
 	var centerID *uint
@@ -35,6 +45,18 @@ func (h *UserHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
+// Create godoc
+// @Summary Create a user
+// @Description Create a new user record (Admin/SuperAdmin only)
+// @Tags users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param user body map[string]interface{} true "User details (username, password, role, center_id, department_id)"
+// @Success 201 {object} models.User
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/users [post]
 func (h *UserHandler) Create(c *gin.Context) {
 	var input struct {
 		Username     string `json:"username" binding:"required"`
@@ -86,6 +108,20 @@ func (h *UserHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
+// Update godoc
+// @Summary Update a user
+// @Description Update an existing user record (SuperAdmin only)
+// @Tags users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Param user body map[string]interface{} true "Updated user details (password, role, center_id, department_id)"
+// @Success 200 {object} models.User
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/users/{id} [put]
 func (h *UserHandler) Update(c *gin.Context) {
 	idParam := c.Param("id")
 	id64, err := strconv.ParseUint(idParam, 10, 32)
@@ -141,6 +177,18 @@ func (h *UserHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
+// Delete godoc
+// @Summary Delete a user
+// @Description Delete a user record (SuperAdmin only)
+// @Tags users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /api/users/{id} [delete]
 func (h *UserHandler) Delete(c *gin.Context) {
 	idParam := c.Param("id")
 	id64, err := strconv.ParseUint(idParam, 10, 32)

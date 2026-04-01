@@ -92,3 +92,14 @@ type User struct {
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
+
+type Feedback struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	UserID    *uint     `json:"user_id"`
+	User      *User     `json:"user,omitempty" gorm:"foreignKey:UserID"`
+	Subject   string    `json:"subject" gorm:"not null"`
+	Message   string    `json:"message" gorm:"not null"`
+	IsRead    bool      `json:"is_read" gorm:"default:false"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
