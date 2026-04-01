@@ -69,6 +69,8 @@ func main() {
 	userHandler := handlers.NewUserHandler(userRepo)
 	feedbackRepo := repository.NewFeedbackRepository(db)
 	feedbackHandler := handlers.NewFeedbackHandler(feedbackRepo)
+	inventoryRepo := repository.NewInventoryRepository(db)
+	inventoryHandler := handlers.NewInventoryHandler(inventoryRepo)
 
 	r := gin.Default()
 
@@ -168,6 +170,18 @@ func main() {
 			feedback.GET("", middleware.RequireRole(models.RoleSuperAdmin), feedbackHandler.List)
 			feedback.PUT("/:id/read", middleware.RequireRole(models.RoleSuperAdmin), feedbackHandler.MarkAsRead)
 			feedback.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin), feedbackHandler.Delete)
+		}
+
+		// Inventory
+		inventory := api.Group("/inventory")
+		{
+			inventory.GET("", inventoryHandler.ListItems)
+			inventory.GET("/:id", inventoryHandler.GetItem)
+			inventory.POST("", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), inventoryHandler.CreateItem)
+			inventory.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin, models.RoleOperator), inventoryHandler.UpdateItem)
+			inventory.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin), inventoryHandler.DeleteItem)
+			inventory.POST("/:id/stock", middleware.RequireRole(models.RoleSuperAdmin, models.RoleCenterAdmin, models.RoleOperator), inventoryHandler.UpdateStock)
+			inventory.GET("/:id/transactions", inventoryHandler.GetTransactions)
 		}
 	}
 

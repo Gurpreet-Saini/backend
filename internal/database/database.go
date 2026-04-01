@@ -32,6 +32,8 @@ func Migrate(db *gorm.DB) error {
 		&models.Sewadar{},
 		&models.Attendance{},
 		&models.Feedback{},
+		&models.Item{},
+		&models.InventoryTransaction{},
 	)
 }
 
@@ -60,15 +62,20 @@ func Seed(db *gorm.DB, adminUsername, adminPassword string) {
 	// Seed super admin user
 	if adminUsername != "" && adminPassword != "" {
 		var superAdminUser models.User
+		hash, _ := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+		
 		if db.Unscoped().Where("username = ?", adminUsername).First(&superAdminUser).Error != nil {
-			hash, _ := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 			superAdminUser = models.User{
 				Username:     adminUsername,
 				PasswordHash: string(hash),
 				Role:         models.RoleSuperAdmin,
 			}
 			db.Create(&superAdminUser)
-			log.Printf("Seeded: superadmin user (%s)\n", adminUsername)
+			log.Printf("Seeded: Created superadmin user (%s)\n", adminUsername)
+		} else {
+			// Update existing admin password to match current environment config
+			db.Model(&superAdminUser).Update("password_hash", string(hash))
+			log.Printf("Seeded: Updated superadmin user password (%s)\n", adminUsername)
 		}
 	}
 }

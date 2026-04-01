@@ -103,3 +103,40 @@ type Feedback struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+type Item struct {
+	ID           uint           `json:"id" gorm:"primaryKey"`
+	Name         string         `json:"name" gorm:"not null"`
+	Category     string         `json:"category"`
+	Description  string         `json:"description"`
+	Quantity     int            `json:"quantity" gorm:"default:0"`
+	Unit         string         `json:"unit"`
+	CenterID     uint           `json:"center_id" gorm:"not null"`
+	Center       *Center        `json:"center,omitempty" gorm:"foreignKey:CenterID"`
+	DepartmentID *uint          `json:"department_id"`
+	Department   *Department    `json:"department,omitempty" gorm:"foreignKey:DepartmentID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+type TransactionType string
+
+const (
+	TransactionTypeAdd      TransactionType = "ADD"
+	TransactionTypeSubtract TransactionType = "SUBTRACT"
+	TransactionTypeSet      TransactionType = "SET"
+)
+
+type InventoryTransaction struct {
+	ID              uint            `json:"id" gorm:"primaryKey"`
+	ItemID          uint            `json:"item_id" gorm:"not null"`
+	Item            *Item           `json:"item,omitempty" gorm:"foreignKey:ItemID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	QuantityChanged int             `json:"quantity_changed" gorm:"not null"`
+	TransactionType TransactionType `json:"transaction_type" gorm:"not null"`
+	Remarks         string          `json:"remarks"`
+	MarkedBy        uint            `json:"marked_by"`
+	MarkedByUser    *User           `json:"marked_by_user,omitempty" gorm:"foreignKey:MarkedBy"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+}

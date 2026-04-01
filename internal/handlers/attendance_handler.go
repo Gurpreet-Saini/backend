@@ -185,6 +185,7 @@ func (h *AttendanceHandler) Update(c *gin.Context) {
 func (h *AttendanceHandler) Export(c *gin.Context) {
 	filter := repository.AttendanceFilter{}
 	role := middleware.GetUserRole(c)
+	userDept := middleware.GetUserDeptID(c)
 	if role == models.RoleSuperAdmin {
 		if centerIDStr := c.Query("center_id"); centerIDStr != "" {
 			id, _ := strconv.Atoi(centerIDStr)
@@ -199,6 +200,8 @@ func (h *AttendanceHandler) Export(c *gin.Context) {
 		id, _ := strconv.Atoi(deptIDStr)
 		uid := uint(id)
 		filter.DepartmentID = &uid
+	} else if role == models.RoleDeptViewer && userDept != nil {
+		filter.DepartmentID = userDept
 	}
 	if from := c.Query("date_from"); from != "" {
 		t, err := time.Parse("2006-01-02", from)
@@ -246,7 +249,13 @@ func (h *AttendanceHandler) Dashboard(c *gin.Context) {
 		centerFilter = middleware.GetUserCenterID(c)
 	}
 
-	_, totalSewadars, _ := h.sewadarSvc.FindAll(nil, centerFilter, 1, 1)
+	userDept := middleware.GetUserDeptID(c)
+	var deptFilter *uint
+	if role == models.RoleDeptViewer && userDept != nil {
+		deptFilter = userDept
+	}
+
+	_, totalSewadars, _ := h.sewadarSvc.FindAll(deptFilter, centerFilter, 1, 1)
 	stats, err := h.svc.GetDashboardStats(totalSewadars, centerFilter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
