@@ -33,11 +33,13 @@ func (s *AttendanceService) CheckIn(sewadarID uint, deptID *uint, markedBy uint)
 
 	// Database foreign key constraint will validate the department
 
-	now := time.Now()
+	now := time.Now().UTC()
+	// Store date as UTC date so it matches the UTC-parsed date filter in queries
+	todayUTC := time.Now().UTC()
 	record := &models.Attendance{
 		SewadarID:    sewadarID,
 		DepartmentID: deptID,
-		Date:         time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location()),
+		Date:         time.Date(todayUTC.Year(), todayUTC.Month(), todayUTC.Day(), 0, 0, 0, 0, time.UTC),
 		CheckIn:      now,
 		MarkedBy:     markedBy,
 	}

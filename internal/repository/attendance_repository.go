@@ -28,7 +28,10 @@ func (r *AttendanceRepository) FindAll(filter AttendanceFilter) ([]models.Attend
 	var records []models.Attendance
 	q := r.db.Select("attendances.id", "attendances.sewadar_id", "attendances.department_id", "attendances.date", "attendances.check_in", "attendances.check_out", "attendances.marked_by", "attendances.created_at", "attendances.updated_at").
 		Preload("Sewadar", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "name", "employee_id")
+			return db.Select("id", "name", "employee_id", "uuid", "center_id")
+		}).
+		Preload("Sewadar.Center", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name")
 		}).
 		Preload("Department", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "name")
@@ -73,8 +76,9 @@ func (r *AttendanceRepository) FindByID(id uint) (*models.Attendance, error) {
 
 func (r *AttendanceRepository) FindBySewadarAndDate(sewadarID uint, date time.Time) (*models.Attendance, error) {
 	var a models.Attendance
+	// Use UTC date to match how dates are stored (UTC midnight)
 	err := r.db.Select("id", "sewadar_id", "department_id", "date", "check_in", "check_out", "marked_by", "created_at", "updated_at").
-		Where("sewadar_id = ? AND date = ?", sewadarID, date.Format("2006-01-02")).First(&a).Error
+		Where("sewadar_id = ? AND date = ?", sewadarID, date.UTC().Format("2006-01-02")).First(&a).Error
 	if err != nil {
 		return nil, err
 	}
