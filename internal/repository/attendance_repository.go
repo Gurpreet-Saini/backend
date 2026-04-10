@@ -134,3 +134,24 @@ func (r *AttendanceRepository) TodayByCenter() ([]map[string]interface{}, error)
 	return results, err
 }
 
+func (r *AttendanceRepository) GetAttendanceTrend(centerID *uint, from, to time.Time, interval string) ([]map[string]interface{}, error) {
+	var results []map[string]interface{}
+	
+	// Default to 'day' if interval is invalid
+	validIntervals := map[string]bool{"day": true, "week": true, "month": true, "year": true}
+	if !validIntervals[interval] {
+		interval = "day"
+	}
+	
+	q := r.db.Table("attendances").
+		Select("DATE_TRUNC(?, date) as period, COUNT(id) as count", interval).
+		Where("date >= ? AND date <= ?", from.Format("2006-01-02"), to.Format("2006-01-02"))
+		
+	if centerID != nil {
+		q = q.Joins("JOIN sewadars ON sewadars.id = attendances.sewadar_id").Where("sewadars.center_id = ?", *centerID)
+	}
+	
+	err := q.Group("period").Order("period ASC").Scan(&results).Error
+	return results, err
+}
+

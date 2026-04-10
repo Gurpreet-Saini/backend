@@ -183,8 +183,13 @@ func (h *AttendanceHandler) Update(c *gin.Context) {
 // @Failure 401 {object} map[string]string
 // @Router /api/attendance/export [get]
 func (h *AttendanceHandler) Export(c *gin.Context) {
-	filter := repository.AttendanceFilter{}
 	role := middleware.GetUserRole(c)
+	if role == models.RoleOperator {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Operators are not authorized to export data"})
+		return
+	}
+
+	filter := repository.AttendanceFilter{}
 	userDept := middleware.GetUserDeptID(c)
 	if role == models.RoleSuperAdmin {
 		if centerIDStr := c.Query("center_id"); centerIDStr != "" {
@@ -238,6 +243,11 @@ func (h *AttendanceHandler) Export(c *gin.Context) {
 // @Router /api/dashboard [get]
 func (h *AttendanceHandler) Dashboard(c *gin.Context) {
 	role := middleware.GetUserRole(c)
+	if role == models.RoleOperator {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Operators are not authorized to view dashboard stats"})
+		return
+	}
+
 	var centerFilter *uint
 	if role == models.RoleSuperAdmin {
 		if centerIDStr := c.Query("center_id"); centerIDStr != "" {
@@ -255,8 +265,21 @@ func (h *AttendanceHandler) Dashboard(c *gin.Context) {
 		deptFilter = userDept
 	}
 
+	var from, to *time.Time
+	if fromStr := c.Query("date_from"); fromStr != "" {
+		if t, err := time.Parse("2006-01-02", fromStr); err == nil {
+			from = &t
+		}
+	}
+	if toStr := c.Query("date_to"); toStr != "" {
+		if t, err := time.Parse("2006-01-02", toStr); err == nil {
+			to = &t
+		}
+	}
+	interval := c.Query("interval")
+
 	_, totalSewadars, _ := h.sewadarSvc.FindAll(deptFilter, centerFilter, 1, 1)
-	stats, err := h.svc.GetDashboardStats(totalSewadars, centerFilter)
+	stats, err := h.svc.GetDashboardStats(totalSewadars, centerFilter, from, to, interval)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
